@@ -1,0 +1,472 @@
+/*
+  Toronto Shop overrides on top of the malefashion-master template's
+  css/style.css (loaded first, unmodified).
+
+  The template's own _variable.scss defines $fm-unna and $secondary-color
+  (#0c2b4b) but the compiled style.css never actually applies either one --
+  every heading renders in Nunito Sans and nothing on the page uses navy.
+  These rules wire both up for real: Unna for headings, navy for the two
+  spots (top bar + footer) that were plain near-black (#111111) in the
+  original.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: "Unna", serif;
+}
+
+.header__top,
+.footer {
+    background: #0c2b4b;
+}
+
+/* ---- text wordmark, replacing the template's raster "Male fashion" logo ---- */
+
+.site-logo {
+    display: inline-block;
+    font-family: "Unna", serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #111111;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+}
+
+.site-logo span {
+    color: #e53637;
+}
+
+.footer .site-logo {
+    color: #ffffff;
+}
+
+/* ---- inert decorative icons (wishlist/compare aren't features in this build) ---- */
+
+.product__hover li:nth-child(1),
+.product__hover li:nth-child(2) {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* ---- category / gender sidebar links double as filter controls ---- */
+
+.shop__sidebar__categories li.active a,
+.shop__sidebar__gender li.active a {
+    color: #e53637;
+}
+
+.shop__sidebar__categories li a,
+.shop__sidebar__gender li a {
+    cursor: pointer;
+}
+
+.shop__product__option__left p {
+    margin-bottom: 0;
+}
+
+/* Links are generated via JS string concatenation with no whitespace
+   between them, so the inline-block boxes (each a 30px circle per the
+   template's own CSS) touch edge-to-edge with zero gap -- hand-authored
+   HTML would have had whitespace between tags giving a small natural gap. */
+.product__pagination a {
+    cursor: pointer;
+    margin: 0 4px;
+}
+
+.filter__controls li {
+    cursor: pointer;
+}
+
+/* Product name is plain text, not a link -- the template's own
+   ".product__item__text a" rule (absolute, opacity: 0, only revealed on
+   hover) is written for the single "+ Add To Cart" anchor. Wrapping the
+   name in an <a> made it match that same selector and disappear even
+   outside hover. The magnifying-glass icon in .product__hover already
+   links to product.html?id=..., so no clickthrough is lost. */
+
+/* Clamp to 2 lines so every card has the same name-block height regardless
+   of how long the product name is -- otherwise price sits at a different
+   height on every row depending on whether the name wrapped. */
+.product__item__text h6 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 40px;
+}
+
+/* h1-h6 all reset to margin: 0 in the base template CSS, which leaves the
+   price sitting flush under the name/add-to-cart overlay. A little
+   breathing room keeps the hover state from reading as overlapping. */
+.product__item__text h5 {
+    margin-top: 8px;
+}
+
+/* Logo is a real wordmark now (see .site-logo below), not the template's
+   fixed-size raster image, so it can wrap awkwardly in the narrower
+   header__logo column at tablet widths without this. */
+.site-logo {
+    white-space: nowrap;
+}
+
+/* .shop__sidebar__gender mirrors .shop__sidebar__categories (template has
+   no gender facet of its own) but only holds 3 items, so no scroll height */
+.shop__sidebar__gender ul {
+    height: auto;
+}
+
+.shop__sidebar__gender ul li {
+    list-style: none;
+}
+
+.shop__sidebar__gender ul li a {
+    color: #b7b7b7;
+    font-size: 15px;
+    line-height: 32px;
+    transition: all 0.3s;
+}
+
+.shop__sidebar__gender ul li a:hover {
+    color: #111111;
+}
+
+/* simple state text used while the product grid is loading/empty */
+.grid-status {
+    padding: 40px 0;
+    text-align: center;
+    color: #5c5c5c;
+    font-size: 16px;
+}
+
+/* product.html has a single image (no multi-angle thumbnails or video --
+   we only have one photo per product), full-width column instead of the
+   template's col-lg-6 next to a thumbnail rail, so it needs its own cap. */
+.product__details__pic__item img {
+    max-width: 500px;
+    width: 100%;
+    border-radius: 4px;
+}
+
+/* cart.html line-item thumbnails: template's own cart images are
+   pre-cropped to this box; ours are full uncropped squares from the API. */
+.product__cart__item__pic img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+/* ---- checkout.html ----
+   The template's own .checkout__order box used .site-btn for "PLACE ORDER";
+   swapped for .primary-btn to match every button elsewhere in this build,
+   which needs the same full-width + spacing .site-btn had in that box. */
+.checkout__order .primary-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.checkout__order .auth__hint {
+    margin: 4px 0 0;
+}
+
+/* ---- auth / account pages (login, signup, profile, orders) ----
+   The template has no page like these, so this reuses its existing visual
+   language: .checkout__input's label+input pattern, the "boxed panel on
+   #f3f2ee" treatment from .checkout__order, and .primary-btn buttons. */
+
+.auth-section {
+    padding: 100px 0;
+}
+
+.auth__card {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #f3f2ee;
+    padding: 40px;
+}
+
+.auth__card .checkout__title {
+    text-align: center;
+}
+
+.auth__card .primary-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.auth__switch {
+    text-align: center;
+    margin-top: 20px;
+    color: #5c5c5c;
+    font-size: 14px;
+}
+
+.auth__switch a {
+    color: #e53637;
+    font-weight: 700;
+}
+
+.auth__hint {
+    color: #b7b7b7;
+    font-size: 13px;
+    margin: -2px 0 16px;
+}
+
+.auth__message {
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    display: none;
+}
+
+.auth__message.is-visible {
+    display: block;
+}
+
+.auth__message.is-error {
+    background: #fbe7e7;
+    color: #c22;
+}
+
+.auth__message.is-success {
+    background: #e6f4ea;
+    color: #237a3f;
+}
+
+.auth__readonly {
+    height: 50px;
+    width: 100%;
+    border: 1px solid #e1e1e1;
+    background: #ececec;
+    font-size: 14px;
+    color: #5c5c5c;
+    padding-left: 20px;
+    line-height: 50px;
+    margin-bottom: 6px;
+}
+
+/* ---- orders.html ---- */
+
+.order-card {
+    background: #f3f2ee;
+    padding: 25px 30px;
+    margin-bottom: 20px;
+}
+
+.order-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #d7d7d7;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.order-card__id {
+    font-weight: 700;
+    color: #111111;
+}
+
+.order-card__date {
+    color: #5c5c5c;
+    font-size: 14px;
+}
+
+.order-status {
+    display: inline-block;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: 3px;
+}
+
+.order-status.status-pending-payment {
+    background: #fdf1d6;
+    color: #96721b;
+}
+
+.order-status.status-confirmed {
+    background: #dbe7fb;
+    color: #1c4b9c;
+}
+
+.order-status.status-shipped {
+    background: #e6ddf7;
+    color: #5b30a6;
+}
+
+.order-status.status-delivered {
+    background: #e0f2e5;
+    color: #1e7a3e;
+}
+
+.order-status.status-cancelled {
+    background: #fbe1e1;
+    color: #a32424;
+}
+
+.order-card__items {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px;
+}
+
+.order-card__items li {
+    color: #444444;
+    font-size: 14px;
+    line-height: 26px;
+}
+
+.order-card__footer {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    color: #111111;
+}
+
+/* ---- admin panel (admin/dashboard.html, admin/products.html, admin/orders.html) ----
+   No template page like this exists either, so same approach as the
+   auth/account pages: reuse existing panel/table/button patterns rather
+   than invent a new visual system. */
+
+.admin-subnav {
+    margin-bottom: 30px;
+    border-bottom: 1px solid #e1e1e1;
+    padding-bottom: 15px;
+}
+
+.admin-subnav a {
+    color: #5c5c5c;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 1px;
+    margin-right: 30px;
+}
+
+.admin-subnav a.active {
+    color: #e53637;
+}
+
+.stat-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 50px;
+}
+
+.stat-card {
+    flex: 1 1 220px;
+    background: #f3f2ee;
+    padding: 30px;
+    text-align: center;
+}
+
+.stat-card h5 {
+    color: #5c5c5c;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.stat-card h2 {
+    color: #111111;
+    font-weight: 700;
+    margin: 0;
+}
+
+.status-breakdown {
+    list-style: none;
+    padding: 0;
+    max-width: 480px;
+}
+
+.status-breakdown li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e1e1e1;
+}
+
+.admin-table-wrap {
+    overflow-x: auto;
+    margin-bottom: 20px;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th {
+    text-align: left;
+    color: #111111;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e1e1e1;
+}
+
+.admin-table td {
+    padding: 15px 10px 15px 0;
+    border-bottom: 1px solid #f2f2f2;
+    font-size: 14px;
+    color: #444444;
+    vertical-align: middle;
+}
+
+.admin-table td.admin-table__img img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+}
+
+.admin-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    cursor: pointer;
+    margin: 2px 4px 2px 0;
+    color: #ffffff;
+    background: #111111;
+}
+
+.admin-btn.admin-btn--danger {
+    background: #c22;
+}
+
+.admin-btn.admin-btn--secondary {
+    background: #5c5c5c;
+}
+
+.admin-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.admin-form-card {
+    background: #f3f2ee;
+    padding: 30px;
+    margin-bottom: 50px;
+}
