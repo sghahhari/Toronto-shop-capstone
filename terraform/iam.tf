@@ -63,3 +63,70 @@ resource "aws_iam_role_policy" "lambda_dynamodb_access" {
     ]
   })
 }
+
+# Dedicated role for the order-notifier Lambda (order_notifier.tf). It is
+# deliberately separate from lambda_exec: that role is shared by VPC-attached
+# Lambdas that need DynamoDB table read/write, while this one is a
+# non-VPC Lambda that only needs to read the orders table's stream and
+# publish to SNS -- reusing lambda_exec would grant it permissions it
+# doesn't need (and vice versa).
+resource "aws_iam_role" "order_notifier_exec" {
+  name = "${var.project_name}-order-notifier-exec"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "order_notifier_basic_execution" {
+  role       = aws_iam_role.order_notifier_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "order_notifier_stream_read" {
+  name = "${var.project_name}-order-notifier-stream-read"
+  role = aws_iam_role.order_notifier_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeStream",
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:ListStreams",
+        ]
+        Resource = aws_dynamodb_table.orders.stream_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "order_notifier_sns_publish" {
+  name = "${var.project_name}-order-notifier-sns-publish"
+  role = aws_iam_role.order_notifier_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "sns:Publish"
+        Resource = aws_sns_topic.order_confirmations.arn
+      }
+    ]
+  })
+}

@@ -15,10 +15,15 @@ resource "aws_dynamodb_table" "products" {
 
 # orders — PK orderId, GSI on userId so customers can list their own orders
 # and admin can list everything via a table scan.
+# Stream (NEW_IMAGE) feeds the order-notifier Lambda (order_notifier.tf) so
+# order confirmations publish to SNS without the VPC-attached orders Lambda
+# needing a path out to a public AWS service.
 resource "aws_dynamodb_table" "orders" {
-  name         = "${var.project_name}-orders"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "orderId"
+  name             = "${var.project_name}-orders"
+  billing_mode     = "PAY_PER_REQUEST"
+  hash_key         = "orderId"
+  stream_enabled   = true
+  stream_view_type = "NEW_IMAGE"
 
   attribute {
     name = "orderId"

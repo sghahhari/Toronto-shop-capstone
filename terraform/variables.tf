@@ -15,3 +15,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "notification_email" {
+  description = "Email address subscribed to the order-confirmation SNS topic. AWS emails a confirmation link to this address after apply -- deliveries are held until it's clicked."
+  type        = string
+  default     = "shahabodin@hotmail.com"
+}

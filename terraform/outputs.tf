@@ -42,3 +42,19 @@ output "lambda_security_group_id" {
   value = aws_security_group.lambda.id
 }
 
+output "frontend_bucket_name" {
+  value = aws_s3_bucket.frontend.id
+}
+
+output "cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.frontend.id
+}
+
+output "cloudfront_url" {
+  value = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
+output "order_confirmations_topic_arn" {
+  value = aws_sns_topic.order_confirmations.arn
+}
+

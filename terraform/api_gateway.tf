@@ -3,7 +3,10 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = ["*"]
+    # Scoped to the actual deployed frontend origin, not "*" -- local dev
+    # (python -m http.server, etc.) will no longer be able to call this API
+    # directly from a browser as a result; that's the intended tradeoff.
+    allow_origins = ["https://${aws_cloudfront_distribution.frontend.domain_name}"]
     allow_methods = ["GET", "POST", "PUT", "PATCH", "OPTIONS"]
     allow_headers = ["Authorization", "Content-Type"]
   }
