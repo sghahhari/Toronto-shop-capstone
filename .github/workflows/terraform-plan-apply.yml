@@ -1,0 +1,129 @@
+name: Terraform Plan & Apply
+
+# GitHub Actions jobs can only "needs:" other jobs in the SAME workflow
+# file. Cross-workflow dependency on security-scan.yml's Security Gate job
+# has to go through workflow_run instead: this workflow only fires once
+# Security Scan has *finished* running on main, and each job below checks
+# its conclusion was "success" before doing anything.
+#
+# branches: [main] here filters on the branch Security Scan ran against.
+# security-scan.yml also triggers on pull_request, but a PR-triggered run's
+# head branch is the PR's own branch, not main, so this only reacts to the
+# push-to-main case -- which is also the only case that matches this
+# workflow's own intent ("triggers on push to main").
+#
+# Note: workflow_run always uses the version of *this* file that exists on
+# the default branch, regardless of what changed in the triggering push.
+on:
+  workflow_run:
+    workflows: ["Security Scan"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write # required for OIDC -> AssumeRoleWithWebIdentity
+
+concurrency:
+  group: terraform-deploy
+  cancel-in-progress: false # never cancel a deploy mid-apply
+
+env:
+  AWS_REGION: ca-central-1
+  DEPLOY_ROLE_ARN: arn:aws:iam::022767580281:role/toronto-shop-github-actions-deploy
+  TF_VERSION: "1.13.3"
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout the commit Security Scan actually validated
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -no-color -input=false -out=tfplan | tee plan_output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Post plan to job summary
+        run: |
+          {
+            echo "## Terraform Plan"
+            echo '```'
+            cat plan_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail the job if plan itself errored
+        if: steps.plan.outputs.exit_code == '1'
+        run: exit 1
+
+      - name: Upload plan file for the apply job
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+          retention-days: 1
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.event.workflow_run.conclusion == 'success'
+    environment: production # pauses here for manual approval (see below)
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout the commit Security Scan actually validated
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Download the exact plan that was reviewed
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: terraform
+
+      - name: Terraform apply
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Post apply result to job summary
+        if: always()
+        run: echo "Terraform apply finished with status **${{ job.status }}**." >> "$GITHUB_STEP_SUMMARY"

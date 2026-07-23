@@ -1,0 +1,213 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Trivy: filesystem scan (npm dependency vulnerabilities) + config scan
+  # (terraform/ IaC misconfigurations). Both write SARIF; findings never
+  # fail this job by themselves (exit-code 0) — the dedicated gate job
+  # below is the actual enforcement point.
+  # ---------------------------------------------------------------------
+  trivy:
+    name: Trivy (filesystem + IaC config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan (npm dependencies)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          exit-code: "0"
+
+      - name: Trivy config scan (terraform/)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: terraform
+          format: sarif
+          output: trivy-config.sarif
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          exit-code: "0"
+
+      - name: Upload Trivy filesystem SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+      - name: Upload Trivy config SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+      - name: Save SARIF files for the gate job
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif
+          path: |
+            trivy-fs.sarif
+            trivy-config.sarif
+          retention-days: 14
+
+  # ---------------------------------------------------------------------
+  # Checkov: IaC misconfiguration scan for terraform/. soft_fail so a
+  # finding doesn't fail this job — the gate job enforces instead.
+  # ---------------------------------------------------------------------
+  checkov:
+    name: Checkov (IaC config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+          soft_fail: true
+
+      - name: Upload Checkov SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov.sarif
+          category: checkov
+
+      - name: Save SARIF file for the gate job
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-sarif
+          path: checkov.sarif
+          retention-days: 14
+
+  # ---------------------------------------------------------------------
+  # Gitleaks: full git history scan for leaked secrets. Run via the
+  # official Docker image directly (rather than a marketplace action) so
+  # the report path/args are explicit. exit-code 0 so a finding doesn't
+  # fail this job — Gitleaks is not part of the enforcement gate per the
+  # spec (Trivy/Checkov Critical/High only), it's informational via the
+  # Security tab.
+  # ---------------------------------------------------------------------
+  gitleaks:
+    name: Gitleaks (full git history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history, not just the last commit
+
+      - name: Run Gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 \
+            detect --source /repo --report-format sarif --report-path /repo/gitleaks.sarif --exit-code 0
+
+      - name: Upload Gitleaks SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
+
+  # ---------------------------------------------------------------------
+  # npm audit: baseline dependency check, plain output, informational
+  # only (no SARIF, not part of the gate). Repo has no package.json today
+  # — skip cleanly instead of failing if one hasn't been added yet.
+  # ---------------------------------------------------------------------
+  npm-audit:
+    name: npm audit (baseline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run npm audit
+        run: |
+          if [ ! -f package.json ]; then
+            echo "No package.json at repo root — nothing for npm audit to check yet."
+            exit 0
+          fi
+          npm audit || true
+
+  # ---------------------------------------------------------------------
+  # Enforcement gate. Runs after all four scanners and fails the workflow
+  # if Trivy or Checkov reported any Critical or High severity finding.
+  # This is the actual blocking check — the scanner jobs above are
+  # deliberately non-blocking so their SARIF still uploads either way.
+  # ---------------------------------------------------------------------
+  security-gate:
+    name: Security Gate (Critical/High)
+    runs-on: ubuntu-latest
+    needs: [trivy, checkov, gitleaks, npm-audit]
+    if: always()
+    steps:
+      - name: Download Trivy SARIF
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-sarif
+          path: sarif/trivy
+
+      - name: Download Checkov SARIF
+        uses: actions/download-artifact@v4
+        with:
+          name: checkov-sarif
+          path: sarif/checkov
+
+      - name: Fail on Critical/High findings
+        run: |
+          fail=0
+
+          check_sarif() {
+            local file="$1"
+            local label="$2"
+            if [ ! -f "$file" ]; then
+              echo "::warning::$label SARIF not found ($file) — skipping"
+              return
+            fi
+            # A result counts as Critical/High if its SARIF level is "error"
+            # (Trivy and Checkov both map their most severe findings to
+            # "error"), or if it carries an explicit CRITICAL/HIGH severity
+            # tag or a security-severity score >= 7.0.
+            count=$(jq '
+              [ .runs[].results[]?
+                | select(
+                    (.level == "error")
+                    or ((.properties.tags // []) | any(. == "CRITICAL" or . == "HIGH"))
+                    or ((.properties["security-severity"] // "0" | tonumber) >= 7.0)
+                  )
+              ] | length
+            ' "$file")
+            echo "$label: $count Critical/High finding(s)"
+            if [ "$count" -gt 0 ]; then
+              fail=1
+            fi
+          }
+
+          check_sarif sarif/trivy/trivy-fs.sarif "Trivy (filesystem)"
+          check_sarif sarif/trivy/trivy-config.sarif "Trivy (config)"
+          check_sarif sarif/checkov/checkov.sarif "Checkov"
+
+          if [ "$fail" -eq 1 ]; then
+            echo "::error::Critical or High severity finding(s) detected by Trivy or Checkov — failing the gate."
+            exit 1
+          fi
+
+          echo "No Critical/High findings from Trivy or Checkov. Gate passed."

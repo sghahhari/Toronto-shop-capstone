@@ -58,3 +58,7 @@ output "order_confirmations_topic_arn" {
   value = aws_sns_topic.order_confirmations.arn
 }
 
+output "github_actions_deploy_role_arn" {
+  value = aws_iam_role.github_actions_deploy.arn
+}
+
