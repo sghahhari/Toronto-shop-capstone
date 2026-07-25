@@ -1,6 +1,13 @@
 (function () {
   if (!requireAuth()) return;
 
+  // Publishable key is safe client-side by design. Stripe.js is initialized
+  // here as plumbing for a future card-entry UI -- actual payment
+  // processing currently happens server-side (stripe_handler Lambda, via
+  // the orders DynamoDB stream) using Stripe's pm_card_visa test
+  // PaymentMethod, since there's no card form on this page yet.
+  var stripe = window.Stripe ? Stripe(TORONTO_SHOP.STRIPE_PUBLISHABLE_KEY) : null;
+
   var loadingEl = document.getElementById("checkout-loading");
   var formEl = document.getElementById("checkout-form");
   var confirmationEl = document.getElementById("order-confirmation");
