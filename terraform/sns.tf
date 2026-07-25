@@ -7,6 +7,10 @@
 resource "aws_sns_topic" "order_confirmations" {
   name = "${var.project_name}-order-confirmations"
 
+  # AWS-managed key (alias/aws/sns) -- no per-key monthly charge, unlike a
+  # customer-managed KMS key, so this is a pure win with no cost tradeoff.
+  kms_master_key_id = "alias/aws/sns"
+
   tags = local.common_tags
 }
 

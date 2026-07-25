@@ -53,6 +53,21 @@ resource "aws_s3_bucket_ownership_controls" "frontend" {
   }
 }
 
+# SSE-S3 (AES256) -- free, no per-key charge unlike a customer-managed KMS
+# key. This bucket only ever holds public static frontend assets already
+# served publicly via CloudFront, so a paid CMK (see terraform/.trivyignore
+# for AWS-0132) isn't justified here, but baseline encryption at rest is a
+# free improvement worth having regardless.
+resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
 # ---------- CloudFront distribution ----------
 
 resource "aws_cloudfront_origin_access_control" "frontend" {

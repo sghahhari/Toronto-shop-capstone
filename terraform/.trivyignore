@@ -1,0 +1,19 @@
+# AWS-0011: CloudFront WAF. A WAFv2 Web ACL has an ongoing hourly charge
+# plus per-rule charges -- not free-tier eligible. This is a capstone demo
+# serving public static assets over HTTPS via CloudFront; a paid WAF is out
+# of proportion to the actual risk here. Revisit if this ever serves
+# anything beyond static files.
+AWS-0011
+
+# AWS-0132: S3 bucket encrypted with a *customer-managed* KMS key
+# specifically ($1/mo per key, not free-tier eligible). The bucket already
+# has baseline SSE-S3 encryption (frontend.tf) and only ever holds public
+# static frontend assets already served publicly via CloudFront -- a paid
+# CMK adds cost without protecting anything sensitive.
+AWS-0132
+
+# AWS-0136: same tradeoff as AWS-0132, for the order-confirmations SNS
+# topic. It already gets encryption at rest via the AWS-managed key
+# (alias/aws/sns, free) in sns.tf -- a customer-managed key on top of that
+# costs $1/mo for a topic that just relays order-confirmation emails.
+AWS-0136
