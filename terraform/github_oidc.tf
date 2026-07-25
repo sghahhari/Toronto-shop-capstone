@@ -124,6 +124,10 @@ resource "aws_iam_role_policy" "github_actions_data_compute" {
           "lambda:GetEventSourceMapping",
           "lambda:UpdateEventSourceMapping",
           "lambda:ListEventSourceMappings",
+          # Same action name as the function-scoped statement below, but a
+          # completely different ARN shape (event-source-mapping:<uuid>) --
+          # needs its own grant under this Resource "*".
+          "lambda:ListTags",
         ]
         Resource = "*"
       },
@@ -209,6 +213,7 @@ resource "aws_iam_role_policy" "github_actions_api_auth" {
           "cognito-idp:TagResource",
           "cognito-idp:UntagResource",
           "cognito-idp:ListTagsForResource",
+          "cognito-idp:GetUserPoolMfaConfig", # read during every user pool refresh
         ]
         Resource = "*"
       }
@@ -246,7 +251,8 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "s3:GetEncryptionConfiguration",
           "s3:GetBucketTagging",
           "s3:PutBucketTagging",
-          "s3:GetBucketAcl", # read during every bucket refresh, not just on create
+          "s3:GetBucketAcl",     # read during every bucket refresh, not just on create
+          "s3:GetBucketWebsite", # ditto
           "s3:ListBucket",
           "s3:GetObject",
           "s3:PutObject",
@@ -274,6 +280,7 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "cloudfront:CreateInvalidation",
           "cloudfront:GetInvalidation",
           "cloudfront:ListCachePolicies", # needed to look up the managed Managed-CachingOptimized policy by name
+          "cloudfront:GetCachePolicy",    # read on every refresh once resolved
         ]
         Resource = "*"
       },
