@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
   security-events: write
+  # Explicit permissions blocks set every unlisted scope to "none", not to
+  # a default -- actions/*-artifact and codeql-action/upload-sarif both
+  # call the Actions API internally, which needs this scope or they 403
+  # with "Resource not accessible by integration".
+  actions: read
 
 jobs:
   # ---------------------------------------------------------------------
@@ -21,10 +26,10 @@ jobs:
     name: Trivy (filesystem + IaC config)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Trivy filesystem scan (npm dependencies)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -35,7 +40,7 @@ jobs:
           exit-code: "0"
 
       - name: Trivy config scan (terraform/)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: terraform
@@ -45,19 +50,19 @@ jobs:
           exit-code: "0"
 
       - name: Upload Trivy filesystem SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
 
       - name: Upload Trivy config SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config
 
       - name: Save SARIF files for the gate job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-sarif
           path: |
@@ -73,7 +78,7 @@ jobs:
     name: Checkov (IaC config)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@v12
@@ -85,13 +90,13 @@ jobs:
           soft_fail: true
 
       - name: Upload Checkov SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov.sarif
           category: checkov
 
       - name: Save SARIF file for the gate job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: checkov-sarif
           path: checkov.sarif
@@ -109,7 +114,7 @@ jobs:
     name: Gitleaks (full git history)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history, not just the last commit
 
@@ -119,7 +124,7 @@ jobs:
             detect --source /repo --report-format sarif --report-path /repo/gitleaks.sarif --exit-code 0
 
       - name: Upload Gitleaks SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: gitleaks.sarif
           category: gitleaks
@@ -133,9 +138,9 @@ jobs:
     name: npm audit (baseline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -159,14 +164,21 @@ jobs:
     needs: [trivy, checkov, gitleaks, npm-audit]
     if: always()
     steps:
+      # continue-on-error: a scanner job that failed outright (crashed
+      # before it could upload its artifact) shouldn't crash the gate job
+      # here -- check_sarif below already treats a missing file as "skip
+      # with a warning", but only if the gate job survives long enough to
+      # reach that script.
       - name: Download Trivy SARIF
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           name: trivy-sarif
           path: sarif/trivy
 
       - name: Download Checkov SARIF
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           name: checkov-sarif
           path: sarif/checkov
