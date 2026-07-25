@@ -9,6 +9,11 @@ step*.tfplan
 .env
 .env.local
 
+# Local tool config -- session-local permission state, not
+# project config; has held ephemeral secret material in the working tree
+# before (never committed, but not something that should ever be trackable).
+.claude/
+
 # Node
 node_modules/
 
