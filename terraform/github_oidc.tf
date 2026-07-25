@@ -110,6 +110,7 @@ resource "aws_iam_role_policy" "github_actions_data_compute" {
           "lambda:AddPermission",
           "lambda:RemovePermission",
           "lambda:GetPolicy",
+          "lambda:GetFunctionCodeSigningConfig", # read during every refresh, not just on create
         ]
         Resource = "arn:aws:lambda:ca-central-1:022767580281:function:toronto-shop-*"
       },
@@ -155,6 +156,15 @@ resource "aws_iam_role_policy" "github_actions_data_compute" {
         Effect   = "Allow"
         Action   = "iam:GetOpenIDConnectProvider"
         Resource = data.aws_iam_openid_connect_provider.github.arn
+      },
+      {
+        # The data source looks the provider up by URL, which the AWS
+        # provider resolves via ListOpenIDConnectProviders before it can
+        # call GetOpenIDConnectProvider on the matched ARN above -- list
+        # operations don't support resource-level scoping.
+        Effect   = "Allow"
+        Action   = "iam:ListOpenIDConnectProviders"
+        Resource = "*"
       }
     ]
   })
@@ -236,6 +246,7 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "s3:GetEncryptionConfiguration",
           "s3:GetBucketTagging",
           "s3:PutBucketTagging",
+          "s3:GetBucketAcl", # read during every bucket refresh, not just on create
           "s3:ListBucket",
           "s3:GetObject",
           "s3:PutObject",
@@ -262,6 +273,7 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "cloudfront:DeleteOriginAccessControl",
           "cloudfront:CreateInvalidation",
           "cloudfront:GetInvalidation",
+          "cloudfront:ListCachePolicies", # needed to look up the managed Managed-CachingOptimized policy by name
         ]
         Resource = "*"
       },
@@ -304,6 +316,7 @@ resource "aws_iam_role_policy" "github_actions_network" {
           "ec2:CreateVpc",
           "ec2:DeleteVpc",
           "ec2:DescribeVpcs",
+          "ec2:DescribeVpcAttribute", # read during every VPC refresh (enableDnsHostnames etc.), not just on create
           "ec2:ModifyVpcAttribute",
           "ec2:CreateSubnet",
           "ec2:DeleteSubnet",
