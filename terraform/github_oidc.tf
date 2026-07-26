@@ -239,26 +239,22 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "s3:CreateBucket",
           "s3:DeleteBucket",
           "s3:PutBucketPolicy",
-          "s3:GetBucketPolicy",
           "s3:DeleteBucketPolicy",
           "s3:PutBucketPublicAccessBlock",
-          "s3:GetBucketPublicAccessBlock",
           "s3:PutBucketCORS",
-          "s3:GetBucketCORS",
           "s3:PutBucketVersioning",
-          "s3:GetBucketVersioning",
           "s3:PutEncryptionConfiguration",
-          "s3:GetEncryptionConfiguration",
-          "s3:GetBucketTagging",
           "s3:PutBucketTagging",
-          "s3:GetBucketAcl",               # read during every bucket refresh, not just on create
-          "s3:GetBucketWebsite",           # ditto
-          "s3:GetAccelerateConfiguration", # ditto
-          "s3:GetBucketRequestPayment",    # ditto
-          "s3:GetBucketLogging",           # ditto
-          "s3:GetLifecycleConfiguration",  # ditto
+          # s3:Get* (read-only, non-mutating): terraform's refresh phase
+          # probes a long tail of individual bucket-attribute reads --
+          # policy, CORS, versioning, encryption, tagging, ACL, website,
+          # accelerate, request payment, logging, lifecycle, replication,
+          # and more -- discovered one AccessDenied at a time. All are
+          # read-only GET calls already scoped to just this bucket, so
+          # granting the wildcard converges instead of chasing each one
+          # individually; no write/delete capability is added by this.
+          "s3:Get*",
           "s3:ListBucket",
-          "s3:GetObject",
           "s3:PutObject",
           "s3:DeleteObject",
         ]
