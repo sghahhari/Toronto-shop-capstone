@@ -268,6 +268,7 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "s3:Get*",
           "s3:ListBucket",
           "s3:PutObject",
+          "s3:PutObjectTagging", # every uploaded frontend file is tagged (aws_s3_object.tags)
           "s3:DeleteObject",
         ]
         Resource = [
