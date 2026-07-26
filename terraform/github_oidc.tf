@@ -255,6 +255,7 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "s3:GetBucketWebsite",           # ditto
           "s3:GetAccelerateConfiguration", # ditto
           "s3:GetBucketRequestPayment",    # ditto
+          "s3:GetBucketLogging",           # ditto
           "s3:ListBucket",
           "s3:GetObject",
           "s3:PutObject",
