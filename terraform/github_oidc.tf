@@ -10,10 +10,19 @@ data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
 
-# Trust is scoped to this exact repo AND branch (ref:refs/heads/main), not a
-# wildcard -- only workflow runs triggered by a push to main can assume this
-# role. PR-triggered runs (security-scan.yml also runs on pull_request) get
-# a different sub claim and are rejected.
+# Trust is scoped to this exact repo, not a wildcard -- only two specific
+# sub claim values are accepted, both listed explicitly rather than via a
+# StringLike wildcard:
+#   - repo:.../ref:refs/heads/main            (the terraform-plan job, and
+#     anything else in this workflow with no `environment:` key)
+#   - repo:.../environment:production          (the terraform-apply job --
+#     a job that targets a GitHub Environment gets a *different* sub claim
+#     shape than a plain ref-triggered job, discovered via a real
+#     AssumeRoleWithWebIdentity denial: terraform-plan succeeded with the
+#     ref-based trust condition alone, terraform-apply did not, because it
+#     sets `environment: production`)
+# PR-triggered runs (security-scan.yml also runs on pull_request) produce a
+# third, different sub claim shape and are still rejected, as intended.
 resource "aws_iam_role" "github_actions_deploy" {
   name = "${var.project_name}-github-actions-deploy"
 
@@ -29,7 +38,10 @@ resource "aws_iam_role" "github_actions_deploy" {
         Condition = {
           StringEquals = {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-            "token.actions.githubusercontent.com:sub" = "repo:sghahhari/Toronto-shop-capstone:ref:refs/heads/main"
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:sghahhari/Toronto-shop-capstone:ref:refs/heads/main",
+              "repo:sghahhari/Toronto-shop-capstone:environment:production",
+            ]
           }
         }
       }
