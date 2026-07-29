@@ -63,3 +63,14 @@ GitHub Actions runs a security-gated deployment pipeline on every push to `main`
 - **Application:** full end-to-end validation performed against the live deployed environment
 
 ## Project structure
+
+```
+terraform/            Infrastructure as Code (all AWS resources)
+frontend/             Static site (HTML/CSS/JS)
+seed/                 Product catalog seed data
+.github/workflows/    CI/CD pipeline definitions
+```
+
+## Tech stack
+
+Terraform · AWS (Lambda, API Gateway, DynamoDB, Cognito, S3, CloudFront, SNS, VPC, IAM) · Stripe · GitHub Actions · Trivy · Checkov · Gitleaks
