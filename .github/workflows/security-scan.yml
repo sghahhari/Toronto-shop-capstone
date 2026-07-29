@@ -220,19 +220,18 @@ jobs:
             fi
             # A result counts as Critical/High if it carries an explicit
             # CRITICAL/HIGH severity tag or a security-severity score >= 7.0
-            # -- and, only for tools verified to encode real severity via
-            # SARIF `level` (Trivy: confirmed error/warning/note varies with
-            # actual CRITICAL/HIGH/MEDIUM/LOW), level == "error" too.
+            # -- and, only for tools that encode real severity via SARIF
+            # `level` (Trivy's error/warning/note tracks actual
+            # CRITICAL/HIGH/MEDIUM/LOW), level == "error" too.
             #
             # Checkov's open-source SARIF output does NOT carry this: every
             # finding comes back `level: error, properties: null` with zero
-            # severity metadata regardless of actual risk (verified against
-            # real output, not assumed) -- treating that as Critical/High
-            # would make the gate fail on every single Checkov finding ever,
-            # which isn't what "Critical/High only" means. Its findings
-            # still upload to the Security tab (once GHAS is enabled) and
-            # the build artifact either way, just not as a gate input until
-            # Checkov's SARIF actually carries severity.
+            # severity metadata regardless of actual risk -- treating that
+            # as Critical/High would fail the gate on every single Checkov
+            # finding, which isn't what "Critical/High only" means. Its
+            # findings still upload to the Security tab (once GHAS is
+            # enabled) and the build artifact either way, just not as a
+            # gate input until Checkov's SARIF actually carries severity.
             count=$(jq --arg trust_level "$trust_level" '
               [ .runs[].results[]?
                 | select(

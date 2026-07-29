@@ -13,14 +13,11 @@ data "aws_iam_openid_connect_provider" "github" {
 # Trust is scoped to this exact repo, not a wildcard -- only two specific
 # sub claim values are accepted, both listed explicitly rather than via a
 # StringLike wildcard:
-#   - repo:.../ref:refs/heads/main            (the terraform-plan job, and
+#   - repo:.../ref:refs/heads/main       (the terraform-plan job, and
 #     anything else in this workflow with no `environment:` key)
-#   - repo:.../environment:production          (the terraform-apply job --
-#     a job that targets a GitHub Environment gets a *different* sub claim
-#     shape than a plain ref-triggered job, discovered via a real
-#     AssumeRoleWithWebIdentity denial: terraform-plan succeeded with the
-#     ref-based trust condition alone, terraform-apply did not, because it
-#     sets `environment: production`)
+#   - repo:.../environment:production    (the terraform-apply job -- a job
+#     that targets a GitHub Environment gets a different sub claim shape
+#     than a plain ref-triggered job, so it needs its own entry here)
 # PR-triggered runs (security-scan.yml also runs on pull_request) produce a
 # third, different sub claim shape and are still rejected, as intended.
 resource "aws_iam_role" "github_actions_deploy" {
@@ -258,13 +255,12 @@ resource "aws_iam_role_policy" "github_actions_frontend_notify" {
           "s3:PutEncryptionConfiguration",
           "s3:PutBucketTagging",
           # s3:Get* (read-only, non-mutating): terraform's refresh phase
-          # probes a long tail of individual bucket-attribute reads --
-          # policy, CORS, versioning, encryption, tagging, ACL, website,
-          # accelerate, request payment, logging, lifecycle, replication,
-          # and more -- discovered one AccessDenied at a time. All are
-          # read-only GET calls already scoped to just this bucket, so
-          # granting the wildcard converges instead of chasing each one
-          # individually; no write/delete capability is added by this.
+          # reads a long tail of individual bucket attributes -- policy,
+          # CORS, versioning, encryption, tagging, ACL, website, accelerate,
+          # request payment, logging, lifecycle, replication, and more.
+          # All are read-only GET calls already scoped to just this bucket,
+          # so the wildcard covers them without granting any write/delete
+          # capability beyond what's listed explicitly below.
           "s3:Get*",
           "s3:ListBucket",
           "s3:PutObject",
