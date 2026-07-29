@@ -25,6 +25,13 @@ locals {
   }
 }
 
+# No cache-busting in filenames (no build step, per BUILD_SPEC.md), so HTML
+# gets no-cache -- every navigation revalidates and always sees the latest
+# deploy. Everything else (JS/CSS/fonts/images) is safe to cache for a day:
+# CloudFront's own edge TTL is already 24h by default (Managed-CachingOptimized)
+# and relies on the same manual invalidate-cache.sh after a deploy, so this
+# doesn't introduce any new staleness window beyond what the CDN already has.
+
 # ---------- S3 bucket (private) ----------
 
 resource "aws_s3_bucket" "frontend" {
@@ -151,11 +158,12 @@ resource "aws_s3_bucket_policy" "frontend" {
 resource "aws_s3_object" "frontend_files" {
   for_each = fileset(local.frontend_dir, "**")
 
-  bucket       = aws_s3_bucket.frontend.id
-  key          = each.value
-  source       = "${local.frontend_dir}/${each.value}"
-  etag         = filemd5("${local.frontend_dir}/${each.value}")
-  content_type = lookup(local.content_types, lower(regex("[^.]+$", each.value)), "application/octet-stream")
+  bucket        = aws_s3_bucket.frontend.id
+  key           = each.value
+  source        = "${local.frontend_dir}/${each.value}"
+  etag          = filemd5("${local.frontend_dir}/${each.value}")
+  content_type  = lookup(local.content_types, lower(regex("[^.]+$", each.value)), "application/octet-stream")
+  cache_control = lower(regex("[^.]+$", each.value)) == "html" ? "no-cache" : "public, max-age=86400"
 
   tags = local.common_tags
 }
