@@ -10,6 +10,10 @@ resource "aws_dynamodb_table" "products" {
     type = "S"
   }
 
+  point_in_time_recovery {
+    enabled = true
+  }
+
   tags = local.common_tags
 }
 
@@ -41,6 +45,10 @@ resource "aws_dynamodb_table" "orders" {
     projection_type = "ALL"
   }
 
+  point_in_time_recovery {
+    enabled = true
+  }
+
   tags = local.common_tags
 }
 
@@ -53,6 +61,10 @@ resource "aws_dynamodb_table" "profiles" {
   attribute {
     name = "userId"
     type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = true
   }
 
   tags = local.common_tags
